@@ -11,17 +11,19 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-int sockfd, newsockfd;
+int rcvFd;
+uint8_t role = ROLE_UNDEFINED;
 
 int bsock_listenTCP(int portno)
-{
+{	
+	int serverFd;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	rcvFd = socket(AF_INET, SOCK_STREAM, 0);
 
-	if (sockfd < 0){
-		error("ERROR opening socket");
+	if (rcvFd < 0){
+		error("ERROR opening socket\n");
 		return CONNECT_FAIL;
 	}
 	
@@ -31,23 +33,24 @@ int bsock_listenTCP(int portno)
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(portno);
 
-	if (bind(sockfd, (struct sockaddr *) &serv_addr,
+	if (bind(rcvFd, (struct sockaddr *) &serv_addr,
 	      sizeof(serv_addr)) < 0) {
-	      fprintf( stderr, "%s: ERROR on binding", __func__);
+	      fprintf( stderr, "%s: ERROR on binding\n", __func__);
 	      return CONNECT_FAIL;
 	}
 
-	listen(sockfd,5);
+	listen(rcvFd,5);
 	clilen = sizeof(cli_addr);
 
-	newsockfd = accept(sockfd, 
+	rcvFd = accept(rcvFd, 
 		 (struct sockaddr *) &cli_addr, 
 		 &clilen);
 
-	if (newsockfd < 0) 
+	if (rcvFd < 0) 
 	  error("ERROR on accept");
 
-
+	close(serverFd);
+	role = ROLE_SERVER;
 	return CONNECT_SUCCESS;
 }
 
@@ -56,14 +59,14 @@ int bsock_connectTCP(const char * ip, int portno)
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0) 
-		fprintf( stderr, "ERROR opening socket");
+	rcvFd = socket(AF_INET, SOCK_STREAM, 0);
+	if (rcvFd < 0) 
+		fprintf( stderr, "ERROR opening socket\n");
 
 	server = gethostbyname(ip);
 	if (server == NULL) {
 		fprintf( stderr, "ERROR, no such host\n");
-		return -1;
+		return CONNECT_FAIL;
 	}
 
 	bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -71,33 +74,34 @@ int bsock_connectTCP(const char * ip, int portno)
 	bcopy( (char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 
 	serv_addr.sin_port = htons(portno);
-	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-		fprintf( stderr, "ERROR connecting");
+	if ( connect(rcvFd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+		fprintf( stderr, "ERROR connecting\n");
 
+	role = ROLE_CLIENT;
 	return CONNECT_SUCCESS;
 }
-
 
 int bsock_readTCP( uint8_t *bytes, uint32_t size)
 {
 	int n;
-	n = read(newsockfd, bytes, size);
-	if (n < 0) fprintf(stderr, "ERROR reading from socket");
+	n = read(rcvFd, bytes, size);
+	if (n < 0) fprintf(stderr, "ERROR reading from socket\n");
+
 	return n;
 }
 
 int bsock_writeTCP( uint8_t *bytes, uint32_t size)
 {
-     int n;
-     n = write(sockfd, bytes, size);
-     if (n < 0) fprintf(stderr, "ERROR writing to socket");
+	int n;
+	n = write(rcvFd, bytes, size);
+	if (n < 0) fprintf(stderr, "ERROR writing to socket\n");
+
 	return CONNECT_SUCCESS;
 }
 
 
 void bsock_closeTCP()
 {
-     close(newsockfd);
-     close(sockfd);
+     close(rcvFd);
 }
 
