@@ -46,10 +46,11 @@ int bsock_listenTCP(int portno)
 		 (struct sockaddr *) &cli_addr, 
 		 &clilen);
 
-	if (rcvFd < 0) 
+	if (rcvFd <= 0){ 
 	  error("ERROR on accept");
+	  return CONNECT_FAIL;
+	}
 
-	close(serverFd);
 	role = ROLE_SERVER;
 	return CONNECT_SUCCESS;
 }
@@ -81,18 +82,18 @@ int bsock_connectTCP(const char * ip, int portno)
 	return CONNECT_SUCCESS;
 }
 
-int bsock_readTCP( uint8_t *bytes, uint32_t size)
+size_t bsock_readTCP( uint8_t *bytes, uint32_t size)
 {
-	int n;
+	size_t n;
 	n = read(rcvFd, bytes, size);
 	if (n < 0) fprintf(stderr, "ERROR reading from socket\n");
 
 	return n;
 }
 
-int bsock_writeTCP( uint8_t *bytes, uint32_t size)
+size_t bsock_writeTCP( uint8_t *bytes, uint32_t size)
 {
-	int n;
+	size_t n;
 	n = write(rcvFd, bytes, size);
 	if (n < 0) fprintf(stderr, "ERROR writing to socket\n");
 
